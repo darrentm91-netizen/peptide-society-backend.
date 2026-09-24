@@ -1,0 +1,44 @@
+name: Quality Gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: peptide_society
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/peptide_society
+      PUBLIC_VERIFY_BASE_URL: https://example.invalid/pages/verify-batch
+      APP_BASE_URL: https://batch.example.invalid
+      PUBLIC_STOREFRONT_ORIGINS: https://example.invalid
+      DOCUMENT_STORAGE_MODE: local
+      ALLOW_LOCAL_DOCUMENT_STORAGE: "true"
+      PS_ADMIN_API_KEY: ci-only-admin-key-not-for-production
+      SHOPIFY_SHOP: example.myshopify.com
+      SHOPIFY_ADMIN_ACCESS_TOKEN: ci-placeholder
+      SHOPIFY_WEBHOOK_SECRET: ci-placeholder
+      SHOPIFY_API_VERSION: 2026-07
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

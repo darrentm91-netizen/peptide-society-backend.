@@ -1,0 +1,37 @@
+{
+  "name": "peptide-society-batch-mvp",
+  "version": "0.9.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "test": "vitest run",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run prisma:generate && npm run typecheck && npm test && npm run build",
+    "smoke": "node scripts/smoke-test.mjs",
+    "verify:env": "node scripts/verify-env.mjs",
+    "preflight": "npm run verify:env && npm run check && npm run smoke",
+    "shopify:webhooks:register": "node scripts/register-shopify-webhooks.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.0",
+    "qrcode": "^1.5.4",
+    "@aws-sdk/client-s3": "^3.890.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "@types/qrcode": "^1.5.5"
+  }
+}
