@@ -5,7 +5,26 @@ const required = (name) => {
 };
 
 const shop = required('SHOPIFY_SHOP').replace(/^https?:\/\//, '').replace(/\/$/, '');
-const token = required('SHOPIFY_ADMIN_ACCESS_TOKEN');
+const clientId = required('SHOPIFY_CLIENT_ID');
+const clientSecret = required('SHOPIFY_CLIENT_SECRET');
+
+async function getAccessToken() {
+  const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+  const body = await response.json();
+  if (!response.ok || !body.access_token) {
+    throw new Error(`Shopify token request failed with ${response.status}: ${body.error_description || body.error || 'unknown error'}`);
+  }
+  return body.access_token;
+}
+const token = await getAccessToken();
 const baseUrl = required('APP_BASE_URL').replace(/\/$/, '');
 const version = process.env.SHOPIFY_API_VERSION || '2026-07';
 const endpoint = `https://${shop}/admin/api/${version}/graphql.json`;
