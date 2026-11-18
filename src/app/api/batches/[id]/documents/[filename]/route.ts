@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (!doc) return NextResponse.json({ error: "Document not available" }, { status: 404 });
     const body = await readStoredDocument(doc.storageUrl);
     const downloadName = doc.fileName.replace(/["\r\n]/g, "");
-    return new Response(new Uint8Array(body){
+    return new Response(new Uint8Array(body),{
       headers: {
         "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${downloadName}"`,
