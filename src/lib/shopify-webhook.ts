@@ -8,10 +8,10 @@ function required(name: string): string {
 
 export function verifyShopifyWebhook(rawBody: string, hmacHeader: string | null): boolean {
   if (!hmacHeader) return false;
-  const secret = required("SHOPIFY_WEBHOOK_SECRET");
+  const secret = required("SHOPIFY_CLIENT_SECRET");
   const digest = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
-  const a = Buffer.from(digest, "utf8");
-  const b = Buffer.from(hmacHeader, "utf8");
+  const a = Buffer.from(digest, "base64");
+  const b = Buffer.from(hmacHeader, "base64");
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
