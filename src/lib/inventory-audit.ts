@@ -34,7 +34,7 @@ export async function auditInventoryInvariants(): Promise<InventoryViolation[]> 
     }
 
     const reservedFromAssignments = batch.lotAssignments
-      .filter((a) => [LotAssignmentStatus.RESERVED, LotAssignmentStatus.ASSIGNED].includes(a.status))
+      .filter((a) => a.status === LotAssignmentStatus.RESERVED || a.status === LotAssignmentStatus.ASSIGNED)
       .reduce((sum, a) => sum + a.quantity, 0);
     const fulfilledFromAssignments = batch.lotAssignments
       .filter((a) => a.status === LotAssignmentStatus.FULFILLED)

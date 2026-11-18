@@ -1,6 +1,12 @@
 import { BatchStatus, DocumentType, TestingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+const CLOSED_BATCH_STATUSES: readonly BatchStatus[] = [
+  BatchStatus.RECALLED,
+  BatchStatus.ARCHIVED,
+  BatchStatus.DEPLETED,
+];
+
 async function audit(tx: Prisma.TransactionClient, args: {
   userId: string; batchId: string; action: string; oldValue?: unknown; newValue?: unknown; reason?: string;
 }) {
@@ -22,7 +28,7 @@ export async function approveBatch(batchId: string, userId: string) {
   return prisma.$transaction(async (tx) => {
     const batch = await tx.psBatch.findUnique({ where: { id: batchId }, include: { documents: true } });
     if (!batch) throw new Error("Batch not found");
-    if ([BatchStatus.RECALLED, BatchStatus.ARCHIVED, BatchStatus.DEPLETED].includes(batch.batchStatus)) {
+    if (CLOSED_BATCH_STATUSES.includes(batch.batchStatus)) {
       throw new Error(`Cannot approve a ${batch.batchStatus.toLowerCase()} batch`);
     }
     const approvedManufacturerCoa = batch.documents.some((d) => d.documentType === DocumentType.MANUFACTURER_COA && d.approved);
@@ -52,7 +58,7 @@ export async function holdBatch(batchId: string, userId: string, reason: string)
   return prisma.$transaction(async (tx) => {
     const batch = await tx.psBatch.findUnique({ where: { id: batchId } });
     if (!batch) throw new Error("Batch not found");
-    if ([BatchStatus.RECALLED, BatchStatus.ARCHIVED, BatchStatus.DEPLETED].includes(batch.batchStatus)) throw new Error("This batch cannot be placed on hold");
+    if (CLOSED_BATCH_STATUSES.includes(batch.batchStatus)) throw new Error("This batch cannot be placed on hold");
     const updated = await tx.psBatch.update({ where: { id: batchId }, data: { batchStatus: BatchStatus.HOLD, holdReason: reason } });
     await audit(tx, { userId, batchId, action: "BATCH_HELD", oldValue: { batchStatus: batch.batchStatus }, newValue: { batchStatus: updated.batchStatus }, reason });
     return updated;

@@ -4,6 +4,11 @@ import { storeBatchDocument } from "@/lib/document-storage";
 
 const ALLOWED_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const INDEPENDENT_DOCUMENT_TYPES: DocumentType[] = [
+  DocumentType.INDEPENDENT_COA,
+  DocumentType.IDENTITY_TEST,
+  DocumentType.PURITY_TEST,
+];
 
 export async function addBatchDocument(args: {
   batchId: string;
@@ -61,7 +66,7 @@ export async function addBatchDocument(args: {
     let testingStatus = batch.testingStatus;
     if (args.documentType === DocumentType.MANUFACTURER_COA && testingStatus === TestingStatus.NOT_STARTED) {
       testingStatus = TestingStatus.MANUFACTURER_DOCUMENTED;
-    } else if ([DocumentType.INDEPENDENT_COA, DocumentType.IDENTITY_TEST, DocumentType.PURITY_TEST].includes(args.documentType)) {
+    } else if (INDEPENDENT_DOCUMENT_TYPES.includes(args.documentType)) {
       testingStatus = TestingStatus.REVIEW_REQUIRED;
     }
     if (testingStatus !== batch.testingStatus) {
@@ -92,13 +97,13 @@ export async function approveBatchDocument(documentId: string, userId: string, p
     });
 
     const batch = await tx.psBatch.findUnique({ where: { id: document.psBatchId } });
-    if (batch && [DocumentType.INDEPENDENT_COA, DocumentType.IDENTITY_TEST, DocumentType.PURITY_TEST].includes(document.documentType)) {
+    if (batch && INDEPENDENT_DOCUMENT_TYPES.includes(document.documentType)) {
       const approvedIndependentDocs = await tx.batchDocument.findMany({
         where: {
           psBatchId: document.psBatchId,
           approved: true,
           supersededAt: null,
-          documentType: { in: [DocumentType.INDEPENDENT_COA, DocumentType.IDENTITY_TEST, DocumentType.PURITY_TEST] },
+          documentType: { in: INDEPENDENT_DOCUMENT_TYPES },
         },
         select: { documentType: true },
       });

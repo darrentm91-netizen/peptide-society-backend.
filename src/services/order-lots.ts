@@ -1,6 +1,11 @@
 import { BatchStatus, LotAssignmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+const OPEN_ASSIGNMENT_STATUSES: readonly LotAssignmentStatus[] = [
+  LotAssignmentStatus.RESERVED,
+  LotAssignmentStatus.ASSIGNED,
+];
+
 export async function reserveLot(args: { orderId: string; orderLineId: string; productId: string; psBatchId: string; quantity: number; userId: string }) {
   return prisma.$transaction(async (tx) => {
     const batch = await tx.psBatch.findUnique({ where: { id: args.psBatchId } });
@@ -26,7 +31,7 @@ export async function releaseReservation(args: { assignmentId: string; userId: s
   return prisma.$transaction(async (tx) => {
     const assignment = await tx.orderLotAssignment.findUnique({ where: { id: args.assignmentId } });
     if (!assignment) throw new Error("Lot assignment not found");
-    if (![LotAssignmentStatus.RESERVED, LotAssignmentStatus.ASSIGNED].includes(assignment.status)) throw new Error("Only open reservations can be released");
+    if (!OPEN_ASSIGNMENT_STATUSES.includes(assignment.status)) throw new Error("Only open reservations can be released");
     await tx.psBatch.update({ where: { id: assignment.psBatchId }, data: { quantityAvailable: { increment: assignment.quantity }, quantityReserved: { decrement: assignment.quantity } } });
     const updated = await tx.orderLotAssignment.update({ where: { id: assignment.id }, data: { status: LotAssignmentStatus.RELEASED } });
     await tx.inventoryTransaction.create({ data: { psBatchId: assignment.psBatchId, transactionType: "RESERVATION_RELEASED", quantity: assignment.quantity, orderId: assignment.shopifyOrderId, orderLineId: assignment.shopifyOrderLineId, createdBy: args.userId, reason: args.reason } });
@@ -39,7 +44,7 @@ export async function confirmFulfillment(args: { assignmentId: string; userId: s
   return prisma.$transaction(async (tx) => {
     const assignment = await tx.orderLotAssignment.findUnique({ where: { id: args.assignmentId } });
     if (!assignment) throw new Error("Lot assignment not found");
-    if (![LotAssignmentStatus.RESERVED, LotAssignmentStatus.ASSIGNED].includes(assignment.status)) throw new Error("Lot assignment cannot be fulfilled in its current state");
+    if (!OPEN_ASSIGNMENT_STATUSES.includes(assignment.status)) throw new Error("Lot assignment cannot be fulfilled in its current state");
     await tx.psBatch.update({ where: { id: assignment.psBatchId }, data: { quantityReserved: { decrement: assignment.quantity }, quantityFulfilled: { increment: assignment.quantity } } });
     const updated = await tx.orderLotAssignment.update({ where: { id: assignment.id }, data: { status: LotAssignmentStatus.FULFILLED, fulfilledAt: new Date() } });
     await tx.inventoryTransaction.create({ data: { psBatchId: assignment.psBatchId, transactionType: "FULFILLED", quantity: assignment.quantity, orderId: assignment.shopifyOrderId, orderLineId: assignment.shopifyOrderLineId, createdBy: args.userId, reason: "Order fulfillment confirmed" } });
@@ -58,7 +63,7 @@ export async function confirmFulfillmentQuantity(args: { assignmentId: string; q
   return prisma.$transaction(async (tx) => {
     const assignment = await tx.orderLotAssignment.findUnique({ where: { id: args.assignmentId } });
     if (!assignment) throw new Error("Lot assignment not found");
-    if (![LotAssignmentStatus.RESERVED, LotAssignmentStatus.ASSIGNED].includes(assignment.status)) throw new Error("Lot assignment cannot be fulfilled in its current state");
+    if (!OPEN_ASSIGNMENT_STATUSES.includes(assignment.status)) throw new Error("Lot assignment cannot be fulfilled in its current state");
     if (args.quantity > assignment.quantity) throw new Error("Fulfillment quantity exceeds reserved lot quantity");
 
     await tx.psBatch.update({
